@@ -564,6 +564,36 @@ data/private/
 - `tests/`: plats för tester som kontrollerar att koden fungerar.
 - `data/private/`: lokal privat data som inte ska laddas upp till GitHub.
 
+## Nuvarande Dataflöde
+
+Första tekniska byggsteget är på plats:
+
+- tickeruniversum sparas i SQLite-databasen `data/private/eodwin.sqlite`
+- prisdata sparas som CSV per ticker i `data/private/eod/`
+- EODHD-nyckel läses från `.env` via variabeln `EODHD_API_KEY`
+- `.env`, SQLite-databasen och hämtad prisdata ska inte commitas
+
+Aktiva testtickers:
+
+```text
+ABB.ST
+ERIC-B.ST
+INVE-B.ST
+VOLV-B.ST
+```
+
+Användbara kommandon:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.cli init-db
+.\.venv\Scripts\python.exe -m app.cli list-tickers
+.\.venv\Scripts\python.exe -m app.cli fetch-all --from-date 2026-05-01
+.\.venv\Scripts\python.exe -m app.cli show-prices ABB.ST --rows 5
+.\.venv\Scripts\python.exe -m unittest discover -s tests
+```
+
+I första versionen innehåller SQLite bara tickerregistret. Prisdata ligger i CSV-filer för att vara lätt att inspektera. Senare kan prisdata flyttas in i SQLite om det passar bättre för screening, analys och UI.
+
 ## Arbetsprincip
 
 Projektet ska byggas stegvis.

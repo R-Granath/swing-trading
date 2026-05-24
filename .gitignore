@@ -3,6 +3,7 @@
 __pycache__/
 *.pyc
 *.db
+*.sqlite
 data/private/*
 !data/private/.gitkeep
 data/raw/
