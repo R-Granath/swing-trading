@@ -587,10 +587,18 @@ Användbara kommandon:
 ```powershell
 .\.venv\Scripts\python.exe -m app.cli init-db
 .\.venv\Scripts\python.exe -m app.cli list-tickers
+.\.venv\Scripts\python.exe -m app.cli fetch-all
 .\.venv\Scripts\python.exe -m app.cli fetch-all --from-date 2026-05-01
 .\.venv\Scripts\python.exe -m app.cli show-prices ABB.ST --rows 5
+.\.venv\Scripts\python.exe -m app.cli show-indicators ABB.ST --rows 5
+.\.venv\Scripts\python.exe -m app.cli sync-prices-db
+.\.venv\Scripts\python.exe -m app.cli calculate-indicators
+.\.venv\Scripts\python.exe -m app.cli show-stored-indicators ABB.ST --rows 5
+.\.venv\Scripts\python.exe -m app.cli daily-update
 .\.venv\Scripts\python.exe -m unittest discover -s tests
 ```
+
+Om `fetch` eller `fetch-all` körs utan `--from-date` väljer programmet startdatum automatiskt. Om ingen lokal prisdata finns, eller om lokal historik är kortare än cirka ett år, hämtas cirka ett år tillbaka. Om ett års lokal historik redan finns hämtas data från dagen efter senaste sparade datum. Ny hämtad data slås ihop med befintlig CSV-data per datum, så historik inte skrivs bort vid dagliga uppdateringar.
 
 I första versionen innehåller SQLite bara tickerregistret. Prisdata ligger i CSV-filer för att vara lätt att inspektera. Senare kan prisdata flyttas in i SQLite om det passar bättre för screening, analys och UI.
 
