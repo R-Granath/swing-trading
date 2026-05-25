@@ -1,0 +1,135 @@
+# Changelog
+
+Projektlogg for `swing-trading` / Eodwin.
+
+Formatet ar skrivet for att vara lasbart bade for manniskor och framtida kodagenter:
+
+- varje pass har datum, commit, status och sammanfattning
+- tekniska andringar listas under stabila rubriker
+- privat data beskrivs utan att innehall eller hemligheter inkluderas
+- kommandon dokumenteras sa att arbetslaget kan ateruppta fran samma lage
+
+## 2026-05-25 - Daily market data and indicator pipeline
+
+Commit: `d1d379b Add daily market data and indicator pipeline`
+
+Status efter passet:
+
+- `main` synkad med `origin/main`
+- tester grona: `Ran 19 tests OK`
+- lokal privat SQLite och CSV-data uppdaterad for fyra testtickers
+
+Byggt:
+
+- Automatisk backfill/pafyllning av EOD-data.
+- CSV-prisdata slas ihop per datum sa historik inte skrivs bort vid korta dagliga hamtningar.
+- Ett samlat dagligt kommando har lagts till: `daily-update`.
+- Prisdata kan synkas fran CSV till SQLite-tabellen `prices`.
+- Indikator-definitioner sparas i SQLite-tabellen `indicator_definitions`.
+- Indikatorvarden sparas dag for dag i SQLite-tabellen `indicator_values`.
+- Forsta indikatorlagret har lagts till med SMA20, SMA50 och SMA200.
+
+Dataeffekt lokalt:
+
+- Ett ars EOD-data hamtades for:
+  - `ABB.ST`
+  - `ERIC-B.ST`
+  - `INVE-B.ST`
+  - `VOLV-B.ST`
+- Varje ticker hade efter backfill 248 prisrader fran cirka `2025-05-26` till `2026-05-25`.
+- SMA20, SMA50 och SMA200 beraknades och sparades i SQLite.
+
+Databaslage:
+
+- SQLite-fil: `data/private/eodwin.sqlite`
+- Tabeller:
+  - `tickers`
+  - `prices`
+  - `indicator_definitions`
+  - `indicator_values`
+- Privat data ar fortsatt ignorerad av Git.
+
+Viktiga kommandon:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.cli daily-update
+.\.venv\Scripts\python.exe -m app.cli show-prices ABB.ST --rows 5
+.\.venv\Scripts\python.exe -m app.cli show-indicators ABB.ST --rows 5
+.\.venv\Scripts\python.exe -m app.cli sync-prices-db
+.\.venv\Scripts\python.exe -m app.cli calculate-indicators
+.\.venv\Scripts\python.exe -m app.cli show-stored-indicators ABB.ST --rows 5
+.\.venv\Scripts\python.exe -m unittest discover -s tests
+```
+
+Noteringar:
+
+- `daily-update` ar manuell i uppbyggnadsfasen.
+- Automatiserad daglig korning ska aktiveras senare nar flodet ar mer moget.
+- Om det gar flera dagar mellan manuella korningar ska programmet fylla pa fran senaste sparade datum.
+- En 7-dagars tolerans finns for att undvika onodig ettars-backfill nar forsta handelsdag ligger efter exakt kalenderdatum.
+
+Rekommenderade nasta steg:
+
+- Lagg till ett kommando for att visa prisdata direkt fran SQLite, till exempel `show-db-prices`.
+- Lagg till fler indikatorer, troligen RSI14 och ATR14.
+- Efter RSI/ATR: borja med forsta enkla screeningregel, till exempel `close > SMA50 > SMA200`.
+
+## 2026-05-24 - Initial EOD data pipeline
+
+Commit: `ca974b4 Add initial EOD data pipeline`
+
+Status efter passet:
+
+- `main` synkad med `origin/main`
+- tester grona
+- forsta lokala dataflodet for Eodwin fungerade
+
+Byggt:
+
+- SQLite borjade anvandas for tickeruniversum.
+- Lokal SQLite-fil definierades som `data/private/eodwin.sqlite`.
+- EOD-prisdata sparades som CSV per ticker under `data/private/eod/`.
+- `.env` flyttades till projektroten och ignoreras av Git.
+- `.env.example` lades till som mall.
+- Batchhamtning fungerade for alla aktiva tickers.
+- Enkel terminalvisning av prisdata lades till.
+
+Tickeruniversum:
+
+- `ABB.ST`
+- `ERIC-B.ST`
+- `INVE-B.ST`
+- `VOLV-B.ST`
+
+Viktiga kommandon:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.cli list-tickers
+.\.venv\Scripts\python.exe -m app.cli fetch-all --from-date 2026-05-20
+.\.venv\Scripts\python.exe -m app.cli show-prices ABB.ST --rows 5
+.\.venv\Scripts\python.exe -m unittest discover -s tests
+```
+
+Databeslut vid detta lage:
+
+- SQLite inneholl tickeruniversumet.
+- Prisdata lag som CSV per ticker for enkel inspektion.
+- Fragor lamnades oppna kring om priser och indikatorer senare skulle flyttas in i SQLite.
+
+## 2026-05-24 - Vision and MVP plan
+
+Commit: `4f06fac Document Eodwin vision and MVP plan`
+
+Byggt:
+
+- Projektets vision, MVP-riktning och huvudfunktioner dokumenterades i `README.md`.
+- Grundprinciper for end-of-day swing-trading, beslutsstod, risk, journal, mentor, UI, backtest och sakerhet formulerades.
+
+## 2026-05-24 - Project initialization
+
+Commit: `cb9edf6 Initialize swing trading project`
+
+Byggt:
+
+- Forsta projektstrukturen skapades.
+- Git-repo initierades for `swing-trading`.
