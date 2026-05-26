@@ -9,9 +9,51 @@ Formatet ar skrivet for att vara lasbart bade for manniskor och framtida kodagen
 - privat data beskrivs utan att innehall eller hemligheter inkluderas
 - kommandon dokumenteras sa att arbetslaget kan ateruppta fran samma lage
 
-## 2026-05-26 - Strategy scoring method docs
+## 2026-05-26 - Pullback scoring spec
 
 Commit: ej commitad an.
+
+Status efter passet:
+
+- dokumentationsandringar, inga kodandringar
+- tester ej korda eftersom passet bara ror dokumentation
+
+Byggt:
+
+- Ny strategispecifikation har lagts till: `docs/pullback_scoring_spec_v1.md`.
+- `docs/README.md` har uppdaterats med pullback-specen i lasordningen.
+- `docs/strategy_development_method_v1.md` har skarpts sa strategy scoring
+  maste bygga pa evidence map, karnlogik och beroenden innan poangtabeller.
+
+Beslut och riktning:
+
+- Pullback v1 definieras som en long-only trendfoljande rekylstrategi.
+- Specen beskriver ideal setup, heat 100, nar caset inte langre ar en pullback,
+  evidenslage, data gates, beroenden, featurebehov och forklaringsdrivare.
+- Metoden sager nu tydligare att LLM inte ska hitta pa slutliga vikter eller
+  trosklar utan litteratur-/teoriforankrad prioritering.
+- Pullback-score ska byggas sekventiellt: trend/prior strength, pullback
+  quality/location, resumption evidence och risk/tradability.
+- Datakvalitet ar en teknisk gate och ska inte ge heat-poang.
+- Volym far tydligare roll i resumption evidence an enskilda candles.
+- Candle-logik ska vara mjuk: 1-3 grona candles kan visa respons, medan 4+
+  grona candles kan minska pullback-fit och flytta caset mot Momentum.
+- V1 ska undvika generella heat caps; svaga beroenden ska ge lagre score genom
+  blockmodellen.
+- Framtida backtest ska kalibrera trendmatt, SMA/ATR-location, volymbekraftelse,
+  rekyldjup, candlepoang och heat-trosklar.
+
+Rekommenderade nasta steg:
+
+- Skapa `docs/feature_definitions_v1.md`.
+- Lagg till ATR14 och ATR14_pct i indikatorlagret.
+- Bygg featurefunktioner for trend/prior strength, pullback location,
+  resumption evidence och risk/tradability.
+- Implementera `PULLBACK_SCORING_V1` med beroenden och poangdrivare.
+
+## 2026-05-26 - Strategy scoring method docs
+
+Commit: `825671c Document strategy scoring method`
 
 Status efter passet:
 

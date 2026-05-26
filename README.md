@@ -578,6 +578,8 @@ Viktiga dokument:
   granskas, backtestas och förfinas.
 - `docs/strategy_scoring_v1.md`: första riktningen för mjuk strategy scoring
   och heat per strategi.
+- `docs/pullback_scoring_spec_v1.md`: första kodnära strategispecifikationen
+  för Pullback v1.
 
 ## Nuvarande Dataflöde
 
