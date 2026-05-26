@@ -9,6 +9,7 @@ from app.eodhd_client import fetch_eod
 from app.indicators import DEFAULT_SMA_WINDOWS, calculate_indicators
 from app.market_data import (
     calculate_and_store_indicators,
+    load_db_prices,
     load_indicator_values,
     register_default_indicators,
     sync_csv_prices_to_db,
@@ -46,6 +47,10 @@ def parse_args() -> argparse.Namespace:
     show_prices = subparsers.add_parser("show-prices", help="Show stored EOD prices for one ticker")
     show_prices.add_argument("symbol", help="EODHD symbol, for example ABB.ST or AAPL.US")
     show_prices.add_argument("--rows", type=int, default=10, help="Number of latest rows to show")
+
+    show_db_prices = subparsers.add_parser("show-db-prices", help="Show SQLite EOD prices for one ticker")
+    show_db_prices.add_argument("symbol", help="EODHD symbol, for example ABB.ST or AAPL.US")
+    show_db_prices.add_argument("--rows", type=int, default=10, help="Number of latest rows to show")
 
     show_indicators = subparsers.add_parser("show-indicators", help="Show calculated indicators for one ticker")
     show_indicators.add_argument("symbol", help="EODHD symbol, for example ABB.ST or AAPL.US")
@@ -218,6 +223,19 @@ def main() -> int:
             print("\t".join(row.get(column, "") for column in visible_columns))
         return 0
 
+    if args.command == "show-db-prices":
+        rows = load_db_prices(args.symbol, settings.database_path)
+        if not rows:
+            print(f"No SQLite prices found for {args.symbol.upper()}. Run sync-prices-db first.")
+            return 0
+
+        visible_columns = ["date", "open", "high", "low", "close", "adjusted_close", "volume"]
+        selected_rows = rows[-args.rows :]
+        print("\t".join(visible_columns))
+        for row in selected_rows:
+            print("\t".join(_format_optional_value(row.get(column)) for column in visible_columns))
+        return 0
+
     if args.command == "show-indicators":
         rows = load_prices(args.symbol, settings.eod_dir)
         if not rows:
@@ -260,6 +278,12 @@ def main() -> int:
         return 0
 
     return 1
+
+
+def _format_optional_value(value) -> str:
+    if value is None:
+        return ""
+    return str(value)
 
 
 if __name__ == "__main__":

@@ -1,9 +1,14 @@
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from datetime import date, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
-from app.cli import BACKFILL_TOLERANCE_DAYS, DEFAULT_HISTORY_DAYS, resolve_from_date
+from app.cli import BACKFILL_TOLERANCE_DAYS, DEFAULT_HISTORY_DAYS, main, resolve_from_date
+from app.config import Settings
+from app.market_data import sync_csv_prices_to_db
 from app.price_store import save_prices
 
 
@@ -163,6 +168,71 @@ class CliTest(unittest.TestCase):
             )
 
             self.assertEqual(resolve_from_date("ABB.ST", None, eod_dir), date.today())
+
+    def test_show_db_prices_prints_latest_sqlite_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base_path = Path(directory)
+            eod_dir = base_path / "eod"
+            database_path = base_path / "eodwin.sqlite"
+            save_prices(
+                "ABB.ST",
+                [
+                    {
+                        "date": "2026-01-01",
+                        "open": 8,
+                        "high": 9,
+                        "low": 7,
+                        "close": 8,
+                        "adjusted_close": 8,
+                        "volume": 800,
+                    },
+                    {
+                        "date": "2026-01-02",
+                        "open": 9,
+                        "high": 10,
+                        "low": 8,
+                        "close": 10,
+                        "adjusted_close": 10,
+                        "volume": 900,
+                    },
+                ],
+                eod_dir,
+            )
+            sync_csv_prices_to_db("ABB.ST", eod_dir, database_path)
+
+            output = io.StringIO()
+            with (
+                patch("app.cli.get_settings", return_value=Settings(database_path=database_path, eod_dir=eod_dir)),
+                patch("sys.argv", ["app.cli", "show-db-prices", "ABB.ST", "--rows", "1"]),
+                redirect_stdout(output),
+            ):
+                exit_code = main()
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(
+                output.getvalue().splitlines(),
+                [
+                    "date\topen\thigh\tlow\tclose\tadjusted_close\tvolume",
+                    "2026-01-02\t9.0\t10.0\t8.0\t10.0\t10.0\t900",
+                ],
+            )
+
+    def test_show_db_prices_handles_missing_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base_path = Path(directory)
+            eod_dir = base_path / "eod"
+            database_path = base_path / "eodwin.sqlite"
+
+            output = io.StringIO()
+            with (
+                patch("app.cli.get_settings", return_value=Settings(database_path=database_path, eod_dir=eod_dir)),
+                patch("sys.argv", ["app.cli", "show-db-prices", "ABB.ST"]),
+                redirect_stdout(output),
+            ):
+                exit_code = main()
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(output.getvalue(), "No SQLite prices found for ABB.ST. Run sync-prices-db first.\n")
 
 
 if __name__ == "__main__":

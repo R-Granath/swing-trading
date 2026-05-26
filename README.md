@@ -515,13 +515,14 @@ En rimlig första MVP kan vara:
 3. Beräkna nödvändiga indikatorer.
 4. Implementera 1-2 första strategier.
 5. Göra daglig screening och scoring.
-6. Skapa dagens tips som text/rapport.
-7. Skicka tips till en liten e-postlista.
-8. Låta användaren skapa trade-plan från kandidat.
-9. Låta användaren registrera faktisk entry och antal.
-10. Följa aktiva trades dagligen med enkel EOD-analys.
-11. Logga trades i journal.
-12. Ha enkel mentorinteraktion kring kandidat, trade-plan och aktiv trade.
+6. Bygga ett enkelt lokalt UI för tickeruniversum, senaste data, indikatorer och screeningresultat.
+7. Skapa dagens tips som text/rapport.
+8. Skicka tips till en liten e-postlista.
+9. Låta användaren skapa trade-plan från kandidat.
+10. Låta användaren registrera faktisk entry och antal.
+11. Följa aktiva trades dagligen med enkel EOD-analys.
+12. Logga trades i journal.
+13. Ha enkel mentorinteraktion kring kandidat, trade-plan och aktiv trade.
 
 ## Öppna Frågor
 
@@ -590,6 +591,7 @@ Användbara kommandon:
 .\.venv\Scripts\python.exe -m app.cli fetch-all
 .\.venv\Scripts\python.exe -m app.cli fetch-all --from-date 2026-05-01
 .\.venv\Scripts\python.exe -m app.cli show-prices ABB.ST --rows 5
+.\.venv\Scripts\python.exe -m app.cli show-db-prices ABB.ST --rows 5
 .\.venv\Scripts\python.exe -m app.cli show-indicators ABB.ST --rows 5
 .\.venv\Scripts\python.exe -m app.cli sync-prices-db
 .\.venv\Scripts\python.exe -m app.cli calculate-indicators
@@ -600,7 +602,7 @@ Användbara kommandon:
 
 Om `fetch` eller `fetch-all` körs utan `--from-date` väljer programmet startdatum automatiskt. Om ingen lokal prisdata finns, eller om lokal historik är kortare än cirka ett år, hämtas cirka ett år tillbaka. Om ett års lokal historik redan finns hämtas data från dagen efter senaste sparade datum. Ny hämtad data slås ihop med befintlig CSV-data per datum, så historik inte skrivs bort vid dagliga uppdateringar.
 
-I första versionen innehåller SQLite bara tickerregistret. Prisdata ligger i CSV-filer för att vara lätt att inspektera. Senare kan prisdata flyttas in i SQLite om det passar bättre för screening, analys och UI.
+SQLite innehåller tickerregistret, prisdata och indikatorvärden. CSV-filerna finns kvar som enkel filcache och inspektionslager, medan SQLite är systemets datakärna för screening, analys och kommande UI.
 
 ## Arbetsprincip
 

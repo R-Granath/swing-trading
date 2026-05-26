@@ -9,6 +9,34 @@ Formatet ar skrivet for att vara lasbart bade for manniskor och framtida kodagen
 - privat data beskrivs utan att innehall eller hemligheter inkluderas
 - kommandon dokumenteras sa att arbetslaget kan ateruppta fran samma lage
 
+## 2026-05-26 - SQLite price inspection
+
+Commit: ej commitad an.
+
+Status efter passet:
+
+- tester grona: `Ran 21 tests OK`
+- lokal privat SQLite uppdaterad fran befintliga CSV-priser
+
+Byggt:
+
+- Nytt CLI-kommando har lagts till: `show-db-prices`.
+- Kommandot visar prisdata direkt fran SQLite-tabellen `prices`.
+- CLI-test har lagts till for bade befintliga SQLite-priser och saknade rader.
+
+Dataeffekt lokalt:
+
+- `sync-prices-db` kordes for aktiva testtickers.
+- `ABB.ST`, `ERIC-B.ST`, `INVE-B.ST` och `VOLV-B.ST` synkades med 248 prisrader vardera.
+
+Viktiga kommandon:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.cli sync-prices-db
+.\.venv\Scripts\python.exe -m app.cli show-db-prices ABB.ST --rows 5
+.\.venv\Scripts\python.exe -m unittest discover -s tests
+```
+
 ## 2026-05-25 - Daily market data and indicator pipeline
 
 Commit: `d1d379b Add daily market data and indicator pipeline`
