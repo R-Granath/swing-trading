@@ -11,7 +11,7 @@ Formatet ar skrivet for att vara lasbart bade for manniskor och framtida kodagen
 
 ## 2026-05-26 - Pullback scoring spec
 
-Commit: ej commitad an.
+Commit: `071909e Document pullback scoring spec`
 
 Status efter passet:
 
