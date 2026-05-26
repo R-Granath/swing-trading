@@ -9,9 +9,44 @@ Formatet ar skrivet for att vara lasbart bade for manniskor och framtida kodagen
 - privat data beskrivs utan att innehall eller hemligheter inkluderas
 - kommandon dokumenteras sa att arbetslaget kan ateruppta fran samma lage
 
-## 2026-05-26 - SQLite price inspection
+## 2026-05-26 - Strategy scoring method docs
 
 Commit: ej commitad an.
+
+Status efter passet:
+
+- dokumentationsandringar, inga kodandringar
+- tester ej korda eftersom passet bara ror dokumentation
+
+Byggt:
+
+- Ny docs-indexfil har lagts till: `docs/README.md`.
+- Nytt metodikdokument har lagts till: `docs/strategy_development_method_v1.md`.
+- Nytt scoringdokument har lagts till: `docs/strategy_scoring_v1.md`.
+- `README.md` lankar nu till de viktiga design- och scoringdokumenten.
+
+Beslut och riktning:
+
+- Strategier ska byggas med en tydlig metod: tradingide, litteraturcheck,
+  featuredefinitioner, scoringhypotes, manuell granskning, kodad modell,
+  backtest, kalibrering och senare live-/journalutfall.
+- LLM ska anvandas for struktur, oversattning och kodstod, men inte som ensam
+  sanningskalla for tradingedge.
+- Litteratur ska anvandas som rimlighetscheck, inte som facit.
+- Backtest ska senare anvandas for att kalibrera vikter och trosklar, men med
+  forsiktighet mot overanpassning.
+- Scoringmodeller ska versioneras sa framtida kandidater och trades kan kopplas
+  till den modellversion som skapade signalen.
+
+Rekommenderade nasta steg:
+
+- Skapa `docs/pullback_scoring_spec_v1.md`.
+- Definiera ideal pullback, heat 100, poangkurvor, hard stops och observationer.
+- Efter pullback-specen: borja koda featurelager och forsta enkla pullback-score.
+
+## 2026-05-26 - SQLite price inspection
+
+Commit: `1583010 Add SQLite price inspection command`
 
 Status efter passet:
 

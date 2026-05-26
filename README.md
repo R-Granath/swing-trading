@@ -557,13 +557,27 @@ python --version
 
 ```text
 app/
+docs/
 tests/
 data/private/
 ```
 
 - `app/`: plats för programmets kod.
+- `docs/`: viktiga designbeslut, strategimetodik och scoringdokument.
 - `tests/`: plats för tester som kontrollerar att koden fungerar.
 - `data/private/`: lokal privat data som inte ska laddas upp till GitHub.
+
+## Viktiga Dokument
+
+Läs `docs/README.md` innan strategi-, scoring-, feature- eller screeninglogik
+ändras.
+
+Viktiga dokument:
+
+- `docs/strategy_development_method_v1.md`: metod för hur strategier byggs,
+  granskas, backtestas och förfinas.
+- `docs/strategy_scoring_v1.md`: första riktningen för mjuk strategy scoring
+  och heat per strategi.
 
 ## Nuvarande Dataflöde
 
