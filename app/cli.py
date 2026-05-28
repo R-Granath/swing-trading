@@ -6,7 +6,8 @@ from datetime import date, timedelta
 
 from app.config import get_settings
 from app.eodhd_client import fetch_eod
-from app.indicators import DEFAULT_SMA_WINDOWS, calculate_indicators
+from app.features import PULLBACK_MVP_FEATURE_COLUMNS, calculate_pullback_mvp_features
+from app.indicators import DEFAULT_ATR_WINDOW, DEFAULT_SMA_WINDOWS, calculate_indicators
 from app.market_data import (
     calculate_and_store_indicators,
     load_db_prices,
@@ -20,6 +21,10 @@ from app.tickers import Ticker, init_db, list_tickers, upsert_ticker
 
 DEFAULT_HISTORY_DAYS = 365
 BACKFILL_TOLERANCE_DAYS = 7
+DEFAULT_INDICATOR_COLUMNS = (
+    [f"sma{window}" for window in DEFAULT_SMA_WINDOWS]
+    + [f"atr{DEFAULT_ATR_WINDOW}", f"atr{DEFAULT_ATR_WINDOW}_pct"]
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -75,6 +80,20 @@ def parse_args() -> argparse.Namespace:
     )
     show_stored_indicators.add_argument("symbol", help="EODHD symbol, for example ABB.ST or AAPL.US")
     show_stored_indicators.add_argument("--rows", type=int, default=10, help="Number of latest rows to show")
+
+    inspect_market = subparsers.add_parser(
+        "inspect-market",
+        help="Show SQLite price rows together with stored indicators for one ticker",
+    )
+    inspect_market.add_argument("symbol", help="EODHD symbol, for example ABB.ST or AAPL.US")
+    inspect_market.add_argument("--rows", type=int, default=10, help="Number of latest rows to show")
+
+    inspect_features = subparsers.add_parser(
+        "inspect-features",
+        help="Show Pullback v1 MVP features for one ticker",
+    )
+    inspect_features.add_argument("symbol", help="EODHD symbol, for example ABB.ST or AAPL.US")
+    inspect_features.add_argument("--rows", type=int, default=10, help="Number of latest rows to show")
 
     daily_update = subparsers.add_parser(
         "daily-update",
@@ -243,7 +262,7 @@ def main() -> int:
             return 0
 
         indicator_rows = calculate_indicators(rows)
-        visible_columns = ["date"] + [f"sma{window}" for window in DEFAULT_SMA_WINDOWS]
+        visible_columns = ["date"] + DEFAULT_INDICATOR_COLUMNS
         selected_rows = indicator_rows[-args.rows :]
         print("\t".join(visible_columns))
         for row in selected_rows:
@@ -271,9 +290,52 @@ def main() -> int:
             print(f"No stored indicators found for {args.symbol.upper()}. Run calculate-indicators first.")
             return 0
 
-        visible_columns = ["date"] + [f"sma{window}" for window in DEFAULT_SMA_WINDOWS]
+        visible_columns = ["date"] + DEFAULT_INDICATOR_COLUMNS
         print("\t".join(visible_columns))
         for row in indicator_rows:
+            print("\t".join(row.get(column, "") for column in visible_columns))
+        return 0
+
+    if args.command == "inspect-market":
+        price_rows = load_db_prices(args.symbol, settings.database_path)
+        if not price_rows:
+            print(f"No SQLite prices found for {args.symbol.upper()}. Run sync-prices-db first.")
+            return 0
+
+        selected_price_rows = price_rows[-args.rows :]
+        indicator_rows = {
+            row["date"]: row
+            for row in load_indicator_values(args.symbol, settings.database_path, args.rows)
+        }
+        visible_columns = [
+            "date",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            *DEFAULT_INDICATOR_COLUMNS,
+        ]
+        print("\t".join(visible_columns))
+        for price_row in selected_price_rows:
+            indicator_row = indicator_rows.get(price_row["date"], {})
+            output_row = {
+                **{column: _format_optional_value(price_row.get(column)) for column in visible_columns},
+                **{column: indicator_row.get(column, "") for column in DEFAULT_INDICATOR_COLUMNS},
+            }
+            print("\t".join(output_row.get(column, "") for column in visible_columns))
+        return 0
+
+    if args.command == "inspect-features":
+        market_rows = _load_market_rows_with_indicators(args.symbol, settings.database_path)
+        if not market_rows:
+            print(f"No SQLite prices found for {args.symbol.upper()}. Run sync-prices-db first.")
+            return 0
+
+        feature_rows = calculate_pullback_mvp_features(market_rows)
+        visible_columns = ["date"] + PULLBACK_MVP_FEATURE_COLUMNS
+        print("\t".join(visible_columns))
+        for row in feature_rows[-args.rows :]:
             print("\t".join(row.get(column, "") for column in visible_columns))
         return 0
 
@@ -284,6 +346,27 @@ def _format_optional_value(value) -> str:
     if value is None:
         return ""
     return str(value)
+
+
+def _load_market_rows_with_indicators(symbol: str, database_path) -> list[dict]:
+    price_rows = load_db_prices(symbol, database_path)
+    if not price_rows:
+        return []
+
+    indicator_rows = {
+        row["date"]: row
+        for row in load_indicator_values(symbol, database_path, rows=len(price_rows))
+    }
+    return [
+        {
+            **price_row,
+            **{
+                column: indicator_rows.get(price_row["date"], {}).get(column, "")
+                for column in DEFAULT_INDICATOR_COLUMNS
+            },
+        }
+        for price_row in price_rows
+    ]
 
 
 if __name__ == "__main__":

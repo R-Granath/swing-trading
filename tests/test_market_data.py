@@ -67,7 +67,7 @@ class MarketDataTest(unittest.TestCase):
                 ]
             finally:
                 connection.close()
-            self.assertEqual(names, ["sma20", "sma200", "sma50"])
+            self.assertEqual(names, ["atr14", "atr14_pct", "sma20", "sma200", "sma50"])
 
     def test_calculate_and_store_indicators(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -79,9 +79,12 @@ class MarketDataTest(unittest.TestCase):
 
             stored_values = calculate_and_store_indicators("ABB.ST", database_path)
 
-            self.assertEqual(stored_values, 11)
+            self.assertEqual(stored_values, 43)
             indicator_rows = load_indicator_values("ABB.ST", database_path, rows=1)
-            self.assertEqual(indicator_rows, [{"date": "2026-01-30", "sma20": "20.5000"}])
+            self.assertEqual(
+                indicator_rows,
+                [{"date": "2026-01-30", "atr14": "1.0000", "atr14_pct": "3.3333", "sma20": "20.5000"}],
+            )
 
 
 if __name__ == "__main__":

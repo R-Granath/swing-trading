@@ -9,6 +9,71 @@ Formatet ar skrivet for att vara lasbart bade for manniskor och framtida kodagen
 - privat data beskrivs utan att innehall eller hemligheter inkluderas
 - kommandon dokumenteras sa att arbetslaget kan ateruppta fran samma lage
 
+## 2026-05-28 - Pullback MVP feature layer
+
+Commit: pending
+
+Status efter passet:
+
+- `main` var synkad med `origin/main` vid start
+- tester grona: `Ran 33 tests OK`
+- lokal SQLite uppdaterad med senaste EODHD-data for fyra testtickers
+- `atr14` och `atr14_pct` beraknades och sparades i SQLite
+
+Byggt:
+
+- Nytt dokument har lagts till: `docs/feature_definitions_v1.md`.
+- Dokumentet begransar forsta Pullback v1-implementationen till 15 MVP-features
+  och markerar ovriga features som `defined_but_deferred`.
+- `atr14` och `atr14_pct` har lagts till i indikatorlagret.
+- `show-indicators` och `show-stored-indicators` visar nu `atr14` och
+  `atr14_pct`.
+- Nytt CLI-kommando har lagts till: `inspect-market`.
+- Nytt featurelager har lagts till: `app/features.py`.
+- Nytt CLI-kommando har lagts till: `inspect-features`.
+- Nytt reviewdokument har lagts till:
+  `docs/pullback_mvp_review_2026-05-28.md`.
+
+Beslut och riktning:
+
+- Pullback v1 MVP ska fortsatt vara smal.
+- Ingen scoring kodades i detta pass.
+- Ingen entry-, stop-loss-, target- eller position sizing-logik kodades.
+- Featurelagret innehaller endast MVP-subsetet fran
+  `docs/feature_definitions_v1.md`.
+- CLI-baserad sanity review anvands som praktisk ersattning for manuell
+  chartgranskning i detta lage.
+
+Dataeffekt lokalt:
+
+- `daily-update` hamtade 8 nya rader totalt fran EODHD.
+- Varje testticker hade efter uppdatering 251 prisrader i SQLite.
+- For varje ticker sparades 960 indikatorvarden.
+- Granskade tickers:
+  - `ABB.ST`
+  - `ERIC-B.ST`
+  - `INVE-B.ST`
+  - `VOLV-B.ST`
+
+Viktiga kommandon:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.cli daily-update
+.\.venv\Scripts\python.exe -m app.cli inspect-market ABB.ST --rows 5
+.\.venv\Scripts\python.exe -m app.cli inspect-features ABB.ST --rows 5
+.\.venv\Scripts\python.exe -m unittest discover -s tests
+```
+
+Rekommenderade nasta steg:
+
+- Formulera och implementera forsta smala `PULLBACK_SCORING_V1`.
+- Scoring ska endast anvanda MVP-features fran
+  `docs/feature_definitions_v1.md`.
+- Folj blocken i `docs/pullback_scoring_spec_v1.md`:
+  trend/prior strength, pullback quality/location, resumption evidence och
+  risk/tradability.
+- Fortsatt ingen entry, stop-loss, target, position sizing eller ny strategi.
+
 ## 2026-05-26 - Pullback scoring spec
 
 Commit: `071909e Document pullback scoring spec`

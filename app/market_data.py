@@ -8,7 +8,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from app.config import DEFAULT_DATABASE_PATH
-from app.indicators import DEFAULT_SMA_WINDOWS, calculate_indicators
+from app.indicators import DEFAULT_ATR_WINDOW, DEFAULT_SMA_WINDOWS, calculate_indicators
 from app.price_store import load_prices
 from app.tickers import init_db
 
@@ -77,6 +77,18 @@ def register_default_indicators(database_path: Path = DEFAULT_DATABASE_PATH) -> 
             parameters={"window": window, "price_column": "adjusted_close"},
             database_path=database_path,
         )
+    upsert_indicator_definition(
+        name=f"atr{DEFAULT_ATR_WINDOW}",
+        indicator_type="atr",
+        parameters={"window": DEFAULT_ATR_WINDOW},
+        database_path=database_path,
+    )
+    upsert_indicator_definition(
+        name=f"atr{DEFAULT_ATR_WINDOW}_pct",
+        indicator_type="atr_pct",
+        parameters={"window": DEFAULT_ATR_WINDOW, "price_column": "close"},
+        database_path=database_path,
+    )
 
 
 def upsert_indicator_definition(

@@ -9,7 +9,8 @@ andras.
 1. `strategy_development_method_v1.md`
 2. `strategy_scoring_v1.md`
 3. `pullback_scoring_spec_v1.md`
-4. Framtida strategispecifikationer, till exempel `momentum_scoring_spec_v1.md`
+4. `feature_definitions_v1.md`
+5. Framtida strategispecifikationer, till exempel `momentum_scoring_spec_v1.md`
 
 ## Dokument
 
@@ -58,12 +59,30 @@ Beskriver forsta strategispecifikationen for Pullback:
 Detta dokument ar en kodnara scoringhypotes. Trosklarna ska granskas manuellt
 och senare kalibreras med backtest.
 
+### `feature_definitions_v1.md`
+
+Definierar det smala Pullback v1 MVP-subsetet som far kodas forst:
+
+- separation mellan indicators, features och scoring
+- endast `atr14` och `atr14_pct` som nasta indikatorsteg
+- 15 tillatna MVP-features for Pullback v1
+- data gates och soft warnings
+- deferred features som inte far anvandas i forsta scoringkoden
+- implementation order fram till manuell chart review och senare scoring
+
+### `pullback_mvp_review_2026-05-28.md`
+
+Dokumenterar forsta CLI-baserade sanity review av Pullback v1 MVP-features for
+`ABB.ST`, `ERIC-B.ST`, `INVE-B.ST` och `VOLV-B.ST`.
+
+Syftet ar att kontrollera om featurevarden verkar rimliga innan scoring byggs.
+Det ar inte en trade-plan och inte en scoringmodell.
+
 ## Framtida dokument
 
 Planerade dokument:
 
 - `momentum_scoring_spec_v1.md`
-- `feature_definitions_v1.md`
 - `backtest_method_v1.md`
 
 Strategispecifikationer ska beskriva ideal setup, heat 100, features,
