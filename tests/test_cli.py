@@ -357,6 +357,94 @@ class CliTest(unittest.TestCase):
             self.assertIn("atr14_pct", lines[0])
             self.assertTrue(lines[1].startswith("2026-01-30\t"))
 
+    def test_inspect_pullback_score_prints_scoring_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base_path = Path(directory)
+            eod_dir = base_path / "eod"
+            database_path = base_path / "eodwin.sqlite"
+            save_prices(
+                "ABB.ST",
+                [
+                    {
+                        "date": f"2026-01-{day:02d}",
+                        "open": day,
+                        "high": day + 1,
+                        "low": day - 1,
+                        "close": day,
+                        "adjusted_close": day,
+                        "volume": 1000,
+                    }
+                    for day in range(1, 31)
+                ],
+                eod_dir,
+            )
+            sync_csv_prices_to_db("ABB.ST", eod_dir, database_path)
+            calculate_and_store_indicators("ABB.ST", database_path)
+
+            output = io.StringIO()
+            with (
+                patch("app.cli.get_settings", return_value=Settings(database_path=database_path, eod_dir=eod_dir)),
+                patch("sys.argv", ["app.cli", "inspect-pullback-score", "ABB.ST", "--rows", "1"]),
+                redirect_stdout(output),
+            ):
+                exit_code = main()
+
+            self.assertEqual(exit_code, 0)
+            lines = output.getvalue().splitlines()
+            self.assertEqual(
+                lines[0],
+                "date\tstrategy\theat\tstatus\ttrend_score\tpullback_score\tresumption_score\trisk_score\tcomment\twarnings",
+            )
+            self.assertTrue(lines[1].startswith("2026-01-30\tPULLBACK_SCORING_V1\t\tNO_SCORE\t"))
+
+    def test_score_strategies_stores_pullback_scores(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base_path = Path(directory)
+            eod_dir = base_path / "eod"
+            database_path = base_path / "eodwin.sqlite"
+            start_date = date(2025, 1, 1)
+            save_prices(
+                "ABB.ST",
+                [
+                    {
+                        "date": (start_date + timedelta(days=day - 1)).isoformat(),
+                        "open": 100 + day,
+                        "high": 102 + day,
+                        "low": 98 + day,
+                        "close": 101 + day,
+                        "adjusted_close": 101 + day,
+                        "volume": 1000 + day,
+                    }
+                    for day in range(1, 221)
+                ],
+                eod_dir,
+            )
+            sync_csv_prices_to_db("ABB.ST", eod_dir, database_path)
+            calculate_and_store_indicators("ABB.ST", database_path)
+
+            score_output = io.StringIO()
+            with (
+                patch("app.cli.get_settings", return_value=Settings(database_path=database_path, eod_dir=eod_dir)),
+                patch("sys.argv", ["app.cli", "score-strategies", "ABB.ST"]),
+                redirect_stdout(score_output),
+            ):
+                score_exit_code = main()
+
+            top_output = io.StringIO()
+            with (
+                patch("app.cli.get_settings", return_value=Settings(database_path=database_path, eod_dir=eod_dir)),
+                patch("sys.argv", ["app.cli", "show-top-setups", "--limit", "1"]),
+                redirect_stdout(top_output),
+            ):
+                top_exit_code = main()
+
+            self.assertEqual(score_exit_code, 0)
+            self.assertIn("ABB.ST: stored 220 PULLBACK_SCORING_V1 scores", score_output.getvalue())
+            self.assertEqual(top_exit_code, 0)
+            top_lines = top_output.getvalue().splitlines()
+            self.assertEqual(top_lines[0], "date\tsymbol\tstrategy_id\theat\tstatus\tcomment\twarnings")
+            self.assertIn("ABB.ST\tPULLBACK_SCORING_V1", top_lines[1])
+
 
 if __name__ == "__main__":
     unittest.main()

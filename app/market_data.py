@@ -63,6 +63,28 @@ def init_market_data_db(database_path: Path = DEFAULT_DATABASE_PATH) -> None:
             )
             """
         )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS strategy_scores (
+                symbol TEXT NOT NULL,
+                date TEXT NOT NULL,
+                strategy_id TEXT NOT NULL,
+                model_version TEXT NOT NULL,
+                heat INTEGER,
+                status TEXT NOT NULL,
+                trend_score INTEGER NOT NULL,
+                pullback_score INTEGER NOT NULL,
+                resumption_score INTEGER NOT NULL,
+                risk_score INTEGER NOT NULL,
+                comment TEXT NOT NULL,
+                positive_drivers TEXT NOT NULL,
+                negative_drivers TEXT NOT NULL,
+                warnings TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (symbol, date, strategy_id, model_version)
+            )
+            """
+        )
         connection.commit()
     finally:
         connection.close()
@@ -262,6 +284,105 @@ def load_indicator_values(
         connection.close()
 
 
+def save_strategy_scores(
+    score_rows: Iterable[dict],
+    database_path: Path = DEFAULT_DATABASE_PATH,
+) -> int:
+    init_market_data_db(database_path)
+    created_at = datetime.now(UTC).isoformat()
+    rows = [
+        (
+            row["symbol"].upper(),
+            row["date"],
+            row["strategy_id"],
+            row["model_version"],
+            _optional_int(row.get("heat")),
+            row["status"],
+            int(row["trend_score"]),
+            int(row["pullback_score"]),
+            int(row["resumption_score"]),
+            int(row["risk_score"]),
+            row.get("comment", ""),
+            json.dumps(row.get("positive_drivers", []), sort_keys=True),
+            json.dumps(row.get("negative_drivers", []), sort_keys=True),
+            json.dumps(row.get("warnings", []), sort_keys=True),
+            created_at,
+        )
+        for row in score_rows
+    ]
+    connection = sqlite3.connect(database_path)
+    try:
+        connection.executemany(
+            """
+            INSERT INTO strategy_scores (
+                symbol, date, strategy_id, model_version, heat, status,
+                trend_score, pullback_score, resumption_score, risk_score,
+                comment, positive_drivers, negative_drivers, warnings, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(symbol, date, strategy_id, model_version) DO UPDATE SET
+                heat = excluded.heat,
+                status = excluded.status,
+                trend_score = excluded.trend_score,
+                pullback_score = excluded.pullback_score,
+                resumption_score = excluded.resumption_score,
+                risk_score = excluded.risk_score,
+                comment = excluded.comment,
+                positive_drivers = excluded.positive_drivers,
+                negative_drivers = excluded.negative_drivers,
+                warnings = excluded.warnings,
+                created_at = excluded.created_at
+            """,
+            rows,
+        )
+        connection.commit()
+        return len(rows)
+    finally:
+        connection.close()
+
+
+def load_strategy_scores(
+    database_path: Path = DEFAULT_DATABASE_PATH,
+    score_date: str | None = None,
+) -> list[dict]:
+    init_market_data_db(database_path)
+    connection = sqlite3.connect(database_path)
+    connection.row_factory = sqlite3.Row
+    try:
+        if score_date is None:
+            latest_date = connection.execute("SELECT MAX(date) FROM strategy_scores").fetchone()[0]
+            if latest_date is None:
+                return []
+            score_date = latest_date
+        rows = connection.execute(
+            """
+            SELECT symbol, date, strategy_id, model_version, heat, status,
+                   trend_score, pullback_score, resumption_score, risk_score,
+                   comment, positive_drivers, negative_drivers, warnings, created_at
+            FROM strategy_scores
+            WHERE date = ?
+            ORDER BY heat DESC, symbol, strategy_id
+            """,
+            (score_date,),
+        )
+        return [_decode_strategy_score_row(dict(row)) for row in rows]
+    finally:
+        connection.close()
+
+
+def load_top_strategy_scores(
+    database_path: Path = DEFAULT_DATABASE_PATH,
+    score_date: str | None = None,
+    limit: int = 20,
+) -> list[dict]:
+    rows = [
+        row
+        for row in load_strategy_scores(database_path=database_path, score_date=score_date)
+        if row["heat"] is not None
+    ]
+    return rows[:limit]
+
+
 def _optional_float(value) -> float | None:
     if value in (None, ""):
         return None
@@ -272,3 +393,12 @@ def _optional_int(value) -> int | None:
     if value in (None, ""):
         return None
     return int(value)
+
+
+def _decode_strategy_score_row(row: dict) -> dict:
+    return {
+        **row,
+        "positive_drivers": json.loads(row["positive_drivers"]),
+        "negative_drivers": json.loads(row["negative_drivers"]),
+        "warnings": json.loads(row["warnings"]),
+    }

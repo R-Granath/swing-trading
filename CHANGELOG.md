@@ -9,9 +9,78 @@ Formatet ar skrivet for att vara lasbart bade for manniskor och framtida kodagen
 - privat data beskrivs utan att innehall eller hemligheter inkluderas
 - kommandon dokumenteras sa att arbetslaget kan ateruppta fran samma lage
 
-## 2026-05-28 - Pullback MVP feature layer
+## 2026-05-29 - Pullback scoring and stored strategy scores
 
 Commit: pending
+
+Status efter passet:
+
+- `main` var synkad med `origin/main` vid start
+- tester grona: `Ran 43 tests OK`
+- senaste EODHD-rad for fyra testtickers hamtades for `2026-05-29`
+- Pullback-scores beraknades och sparades i SQLite for alla fyra testtickers
+
+Byggt:
+
+- Ny scoringmodul har lagts till: `app/scoring.py`.
+- `PULLBACK_SCORING_V1` har implementerats med blocken trend/prior strength,
+  pullback quality/location, resumption evidence och risk/tradability.
+- Pullback quality/location har justerats sa faktisk rekyl vager tyngre,
+  location inte kan dominera utan rekyl och SMA-avstand behandlas asymmetriskt.
+- Nytt CLI-kommando har lagts till: `inspect-pullback-score`.
+- Ny SQLite-tabell har lagts till: `strategy_scores`.
+- Nya datalagerfunktioner har lagts till for att spara och lasa
+  strategiscores.
+- Nya CLI-kommandon har lagts till:
+  - `score-strategies`
+  - `show-strategy-scores`
+  - `show-top-setups`
+- Tester har lagts till for scoringmodellen, CLI-flodet och persistent
+  strategy scores.
+
+Beslut och riktning:
+
+- Features sparas inte i databasen i detta steg. De beraknas i arbetsminne fran
+  prisdata och indikatorer.
+- Scoringresultat sparas separat per ticker, datum, strategi och modellversion.
+- Scoring ar fortsatt kandidat- och prioriteringsmotor, inte faktisk
+  trade-plan.
+- Entry, stop-buy, stop-loss, target, risk/reward och position sizing ska byggas
+  senare som separat strategilager.
+- Forsta sparade strategin ar endast `PULLBACK_SCORING_V1`.
+
+Dataeffekt lokalt:
+
+- `daily-update` hamtade 4 nya rader totalt fran EODHD.
+- Varje testticker hade efter uppdatering 252 prisrader i SQLite.
+- `score-strategies` sparade 1008 strategy-score-rader.
+- Topplista for `2026-05-29`:
+  - `ERIC-B.ST` `PULLBACK_SCORING_V1` 95 `HOT`
+  - `ABB.ST` `PULLBACK_SCORING_V1` 81 `HOT`
+  - `INVE-B.ST` `PULLBACK_SCORING_V1` 78 `CANDIDATE`
+  - `VOLV-B.ST` `PULLBACK_SCORING_V1` 63 `WATCH`
+
+Viktiga kommandon:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.cli daily-update
+.\.venv\Scripts\python.exe -m app.cli inspect-pullback-score ERIC-B.ST --rows 1
+.\.venv\Scripts\python.exe -m app.cli score-strategies
+.\.venv\Scripts\python.exe -m app.cli show-top-setups --date 2026-05-29 --limit 10
+.\.venv\Scripts\python.exe -m unittest discover -s tests
+```
+
+Rekommenderade nasta steg:
+
+- Granska de fyra Pullback-casen visuellt mot chart for att validera scoringens
+  beteende.
+- Dokumentera en kort Pullback scoring review for `2026-05-29`.
+- Borja drefter designa forsta faktiska Pullback-strategin som separat lager
+  fran scoring.
+
+## 2026-05-28 - Pullback MVP feature layer
+
+Commit: `a65544a Add pullback MVP feature layer`
 
 Status efter passet:
 

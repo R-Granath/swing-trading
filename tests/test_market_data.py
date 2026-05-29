@@ -8,7 +8,10 @@ from app.market_data import (
     calculate_and_store_indicators,
     load_db_prices,
     load_indicator_values,
+    load_strategy_scores,
+    load_top_strategy_scores,
     register_default_indicators,
+    save_strategy_scores,
     sync_csv_prices_to_db,
 )
 from app.price_store import PRICE_COLUMNS, price_path
@@ -85,6 +88,57 @@ class MarketDataTest(unittest.TestCase):
                 indicator_rows,
                 [{"date": "2026-01-30", "atr14": "1.0000", "atr14_pct": "3.3333", "sma20": "20.5000"}],
             )
+
+    def test_save_and_load_strategy_scores(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "eodwin.sqlite"
+
+            saved = save_strategy_scores(
+                [
+                    {
+                        "symbol": "ABB.ST",
+                        "date": "2026-05-29",
+                        "strategy_id": "PULLBACK_SCORING_V1",
+                        "model_version": "PULLBACK_SCORING_V1",
+                        "heat": 72,
+                        "status": "CANDIDATE",
+                        "trend_score": 35,
+                        "pullback_score": 18,
+                        "resumption_score": 12,
+                        "risk_score": 7,
+                        "comment": "controlled pullback",
+                        "positive_drivers": ["strong prior trend"],
+                        "negative_drivers": [],
+                        "warnings": [],
+                    },
+                    {
+                        "symbol": "VOLV-B.ST",
+                        "date": "2026-05-29",
+                        "strategy_id": "PULLBACK_SCORING_V1",
+                        "model_version": "PULLBACK_SCORING_V1",
+                        "heat": None,
+                        "status": "NO_SCORE",
+                        "trend_score": 0,
+                        "pullback_score": 0,
+                        "resumption_score": 0,
+                        "risk_score": 0,
+                        "comment": "",
+                        "positive_drivers": [],
+                        "negative_drivers": ["invalid data"],
+                        "warnings": ["missing sma200"],
+                    },
+                ],
+                database_path,
+            )
+
+            rows = load_strategy_scores(database_path, score_date="2026-05-29")
+            top_rows = load_top_strategy_scores(database_path, score_date="2026-05-29")
+
+            self.assertEqual(saved, 2)
+            self.assertEqual([row["symbol"] for row in rows], ["ABB.ST", "VOLV-B.ST"])
+            self.assertEqual(rows[0]["positive_drivers"], ["strong prior trend"])
+            self.assertEqual(rows[1]["warnings"], ["missing sma200"])
+            self.assertEqual([row["symbol"] for row in top_rows], ["ABB.ST"])
 
 
 if __name__ == "__main__":

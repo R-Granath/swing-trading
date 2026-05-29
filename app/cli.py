@@ -12,10 +12,14 @@ from app.market_data import (
     calculate_and_store_indicators,
     load_db_prices,
     load_indicator_values,
+    load_strategy_scores,
+    load_top_strategy_scores,
     register_default_indicators,
+    save_strategy_scores,
     sync_csv_prices_to_db,
 )
 from app.price_store import PRICE_COLUMNS, earliest_price_date, latest_price_date, load_prices, save_prices
+from app.scoring import PULLBACK_SCORE_COLUMNS, PULLBACK_STRATEGY_ID, score_pullback_feature_rows
 from app.tickers import Ticker, init_db, list_tickers, upsert_ticker
 
 
@@ -94,6 +98,36 @@ def parse_args() -> argparse.Namespace:
     )
     inspect_features.add_argument("symbol", help="EODHD symbol, for example ABB.ST or AAPL.US")
     inspect_features.add_argument("--rows", type=int, default=10, help="Number of latest rows to show")
+
+    inspect_pullback_score = subparsers.add_parser(
+        "inspect-pullback-score",
+        help="Show Pullback v1 scoring for one ticker",
+    )
+    inspect_pullback_score.add_argument("symbol", help="EODHD symbol, for example ABB.ST or AAPL.US")
+    inspect_pullback_score.add_argument("--rows", type=int, default=10, help="Number of latest rows to show")
+
+    score_strategies = subparsers.add_parser(
+        "score-strategies",
+        help="Calculate and store strategy scores in SQLite",
+    )
+    score_strategies.add_argument(
+        "symbol",
+        nargs="?",
+        help="Optional ticker. If omitted, score all active tickers.",
+    )
+
+    show_strategy_scores = subparsers.add_parser(
+        "show-strategy-scores",
+        help="Show stored strategy scores for one date",
+    )
+    show_strategy_scores.add_argument("--date", help="Score date in YYYY-MM-DD format. Defaults to latest stored date.")
+
+    show_top_setups = subparsers.add_parser(
+        "show-top-setups",
+        help="Show highest stored strategy scores for one date",
+    )
+    show_top_setups.add_argument("--date", help="Score date in YYYY-MM-DD format. Defaults to latest stored date.")
+    show_top_setups.add_argument("--limit", type=int, default=20, help="Maximum number of rows to show")
 
     daily_update = subparsers.add_parser(
         "daily-update",
@@ -339,6 +373,57 @@ def main() -> int:
             print("\t".join(row.get(column, "") for column in visible_columns))
         return 0
 
+    if args.command == "inspect-pullback-score":
+        market_rows = _load_market_rows_with_indicators(args.symbol, settings.database_path)
+        if not market_rows:
+            print(f"No SQLite prices found for {args.symbol.upper()}. Run sync-prices-db first.")
+            return 0
+
+        feature_rows = calculate_pullback_mvp_features(market_rows)
+        score_rows = [score.as_row() for score in score_pullback_feature_rows(feature_rows)]
+        print("\t".join(PULLBACK_SCORE_COLUMNS))
+        for row in score_rows[-args.rows :]:
+            print("\t".join(row.get(column, "") for column in PULLBACK_SCORE_COLUMNS))
+        return 0
+
+    if args.command == "score-strategies":
+        symbols = [args.symbol.upper()] if args.symbol else [ticker["symbol"] for ticker in list_tickers(settings.database_path)]
+        total_saved = 0
+        for symbol in symbols:
+            market_rows = _load_market_rows_with_indicators(symbol, settings.database_path)
+            if not market_rows:
+                print(f"{symbol}: no SQLite prices found. Run sync-prices-db first.")
+                continue
+
+            feature_rows = calculate_pullback_mvp_features(market_rows)
+            scores = score_pullback_feature_rows(feature_rows)
+            saved = save_strategy_scores(
+                [_strategy_score_storage_row(symbol, score) for score in scores],
+                settings.database_path,
+            )
+            total_saved += saved
+            latest_score = scores[-1]
+            heat = "" if latest_score.heat is None else str(latest_score.heat)
+            print(f"{symbol}: stored {saved} {PULLBACK_STRATEGY_ID} scores, latest {latest_score.date} {heat} {latest_score.status}")
+        print(f"Strategy scoring complete: stored {total_saved} scores")
+        return 0
+
+    if args.command == "show-strategy-scores":
+        rows = load_strategy_scores(settings.database_path, score_date=args.date)
+        if not rows:
+            print("No stored strategy scores found. Run score-strategies first.")
+            return 0
+        _print_strategy_score_rows(rows)
+        return 0
+
+    if args.command == "show-top-setups":
+        rows = load_top_strategy_scores(settings.database_path, score_date=args.date, limit=args.limit)
+        if not rows:
+            print("No stored scored setups found. Run score-strategies first.")
+            return 0
+        _print_strategy_score_rows(rows)
+        return 0
+
     return 1
 
 
@@ -367,6 +452,37 @@ def _load_market_rows_with_indicators(symbol: str, database_path) -> list[dict]:
         }
         for price_row in price_rows
     ]
+
+
+def _strategy_score_storage_row(symbol: str, score) -> dict:
+    return {
+        "symbol": symbol,
+        "date": score.date,
+        "strategy_id": score.strategy,
+        "model_version": score.strategy,
+        "heat": score.heat,
+        "status": score.status,
+        "trend_score": score.trend_score,
+        "pullback_score": score.pullback_score,
+        "resumption_score": score.resumption_score,
+        "risk_score": score.risk_score,
+        "comment": score.comment,
+        "positive_drivers": list(score.positive_drivers),
+        "negative_drivers": list(score.negative_drivers),
+        "warnings": list(score.warnings),
+    }
+
+
+def _print_strategy_score_rows(rows: list[dict]) -> None:
+    visible_columns = ["date", "symbol", "strategy_id", "heat", "status", "comment", "warnings"]
+    print("\t".join(visible_columns))
+    for row in rows:
+        output_row = {
+            **row,
+            "heat": "" if row["heat"] is None else str(row["heat"]),
+            "warnings": ", ".join(row["warnings"]),
+        }
+        print("\t".join(str(output_row.get(column, "")) for column in visible_columns))
 
 
 if __name__ == "__main__":
