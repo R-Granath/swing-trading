@@ -8,8 +8,7 @@ from unittest.mock import patch
 
 from app.cli import BACKFILL_TOLERANCE_DAYS, DEFAULT_HISTORY_DAYS, main, resolve_from_date
 from app.config import Settings
-from app.market_data import sync_csv_prices_to_db
-from app.market_data import calculate_and_store_indicators
+from app.market_data import calculate_and_store_indicators, save_strategy_scores, sync_csv_prices_to_db
 from app.price_store import save_prices
 
 
@@ -444,6 +443,105 @@ class CliTest(unittest.TestCase):
             top_lines = top_output.getvalue().splitlines()
             self.assertEqual(top_lines[0], "date\tsymbol\tstrategy_id\theat\tstatus\tcomment\twarnings")
             self.assertIn("ABB.ST\tPULLBACK_SCORING_V1", top_lines[1])
+
+    def test_inspect_pullback_trade_plan_prints_plan_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base_path = Path(directory)
+            eod_dir = base_path / "eod"
+            database_path = base_path / "eodwin.sqlite"
+            start_date = date(2025, 1, 1)
+            save_prices(
+                "ABB.ST",
+                [
+                    {
+                        "date": (start_date + timedelta(days=day - 1)).isoformat(),
+                        "open": 100 + day,
+                        "high": 102 + day,
+                        "low": 98 + day,
+                        "close": 101 + day,
+                        "adjusted_close": 101 + day,
+                        "volume": 1000 + day,
+                    }
+                    for day in range(1, 221)
+                ],
+                eod_dir,
+            )
+            sync_csv_prices_to_db("ABB.ST", eod_dir, database_path)
+            calculate_and_store_indicators("ABB.ST", database_path)
+
+            output = io.StringIO()
+            with (
+                patch("app.cli.get_settings", return_value=Settings(database_path=database_path, eod_dir=eod_dir)),
+                patch("sys.argv", ["app.cli", "inspect-pullback-trade-plan", "ABB.ST", "--rows", "1"]),
+                redirect_stdout(output),
+            ):
+                exit_code = main()
+
+            self.assertEqual(exit_code, 0)
+            lines = output.getvalue().splitlines()
+            self.assertEqual(
+                lines[0],
+                "date\tstrategy\tsource_scoring_model\tsource_heat\tsource_status\tplan_status\t"
+                "setup_class\tsetup_evolution\trr_hypothesis\tcomment\twarnings",
+            )
+            self.assertIn("PULLBACK_TRADE_PLAN_V1", lines[1])
+
+    def test_summarize_pullback_trade_plans_prints_filter_effect(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base_path = Path(directory)
+            eod_dir = base_path / "eod"
+            database_path = base_path / "eodwin.sqlite"
+            start_date = date(2025, 1, 1)
+            rows = [
+                {
+                    "date": (start_date + timedelta(days=day - 1)).isoformat(),
+                    "open": 100 + day,
+                    "high": 102 + day,
+                    "low": 98 + day,
+                    "close": 101 + day,
+                    "adjusted_close": 101 + day,
+                    "volume": 1000 + day,
+                }
+                for day in range(1, 221)
+            ]
+            save_prices("ABB.ST", rows, eod_dir)
+            sync_csv_prices_to_db("ABB.ST", eod_dir, database_path)
+            calculate_and_store_indicators("ABB.ST", database_path)
+            save_strategy_scores(
+                [
+                    {
+                        "symbol": "ABB.ST",
+                        "date": rows[-1]["date"],
+                        "strategy_id": "PULLBACK_SCORING_V1",
+                        "model_version": "PULLBACK_SCORING_V1",
+                        "heat": 72,
+                        "status": "CANDIDATE",
+                        "trend_score": 35,
+                        "pullback_score": 18,
+                        "resumption_score": 12,
+                        "risk_score": 7,
+                        "comment": "",
+                        "positive_drivers": [],
+                        "negative_drivers": [],
+                        "warnings": [],
+                    }
+                ],
+                database_path,
+            )
+
+            output = io.StringIO()
+            with (
+                patch("app.cli.get_settings", return_value=Settings(database_path=database_path, eod_dir=eod_dir)),
+                patch("sys.argv", ["app.cli", "summarize-pullback-trade-plans"]),
+                redirect_stdout(output),
+            ):
+                exit_code = main()
+
+            self.assertEqual(exit_code, 0)
+            lines = output.getvalue().splitlines()
+            self.assertEqual(lines[0], f"date\t{rows[-1]['date']}")
+            self.assertEqual(lines[1], "total_pullback_candidates\t1")
+            self.assertIn("count_by_plan_status", lines)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,77 @@ Formatet ar skrivet for att vara lasbart bade for manniskor och framtida kodagen
 - privat data beskrivs utan att innehall eller hemligheter inkluderas
 - kommandon dokumenteras sa att arbetslaget kan ateruppta fran samma lage
 
+## 2026-05-31 - Pullback trade plan prototype
+
+Commit: pending
+
+Status efter passet:
+
+- forsta Python-prototyp for `PULLBACK_TRADE_PLAN_V1` implementerad
+- scoringlogik for `PULLBACK_SCORING_V1` andrades inte
+- entry, stop-loss, target, risk/reward-nivaer och position sizing ar fortsatt
+  inte implementerade
+- tester grona: `Ran 53 tests OK`
+
+Byggt:
+
+- Nytt separat trade-plan-lager har lagts till: `app/trade_plan.py`.
+- Trade-planen beraknar i arbetsminne:
+  - `plan_status`
+  - `setup_class`
+  - `setup_evolution`
+  - `rr_hypothesis`
+  - warnings
+  - kort deterministisk kommentar
+- Nya CLI-kommandon har lagts till:
+  - `inspect-pullback-trade-plan`
+  - `summarize-pullback-trade-plans`
+- Tester har lagts till for trade-plan-regler, CLI-output och filtereffekt.
+
+Beslut och riktning:
+
+- Trade-plan-lagret ligger separat fran scoring och anvander scoringresultat
+  som input utan att andra heat/status.
+- `thin_response` justerades efter review: en aldre tunn gron dag i senaste
+  5-dagarsfonstret blockerar inte langre en senare stark volymrespons.
+- `thin_response` satts nu bara nar aktuell stark gron responsdag har lag
+  relativ volym.
+- `down_volume_risk` ar kvar som warning/caution och blockerar inte ensam
+  `READY_PLAN`.
+
+Dataeffekt lokalt for `2026-05-29`:
+
+- Efter volymjusteringen gav filtereffekten for de fyra testtickers:
+  - `READY_PLAN`: 2
+  - `WATCH_PLAN`: 2
+  - `RESPONDING`: 4
+  - `RR_GOOD`: 3
+  - `RR_UNCLEAR`: 1
+- `ERIC-B.ST` blev `READY_PLAN` med warning `down_volume_risk`.
+- `ABB.ST` blev `READY_PLAN` utan warning, men manuell chart-review visade att
+  caset kan vara mer shallow/momentum-liknande an ren Pullback v1.
+- `INVE-B.ST` och `VOLV-B.ST` blev `WATCH_PLAN`.
+
+Viktiga kommandon:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.cli inspect-pullback-trade-plan ERIC-B.ST --rows 1
+.\.venv\Scripts\python.exe -m app.cli inspect-pullback-trade-plan ABB.ST --rows 1
+.\.venv\Scripts\python.exe -m app.cli summarize-pullback-trade-plans --date 2026-05-29
+.\.venv\Scripts\python.exe -m unittest discover -s tests
+```
+
+Rekommenderade nasta steg:
+
+- Fortsatt putsa `PULLBACK_TRADE_PLAN_V1` innan trade levels byggs.
+- Fokusera pa ABB-fyndet: skilj ren pullback-respons fran shallow pullback,
+  continuation eller momentum-handoff.
+- Granska och eventuellt justera nar grund pullback + modest pullback_score
+  ska bli `SHALLOW_PULLBACK`, `MOMENTUM_HANDOFF`, `WATCH_PLAN` eller
+  `LATE_PLAN` i stallet for ren `READY_PLAN`.
+- Vanta med entry, stop, target och position sizing tills `READY_PLAN` betyder
+  ratt sak.
+
 ## 2026-05-31 - Pullback trade plan decision table
 
 Commit: pending

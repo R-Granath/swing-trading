@@ -21,6 +21,12 @@ from app.market_data import (
 from app.price_store import PRICE_COLUMNS, earliest_price_date, latest_price_date, load_prices, save_prices
 from app.scoring import PULLBACK_SCORE_COLUMNS, PULLBACK_STRATEGY_ID, score_pullback_feature_rows
 from app.tickers import Ticker, init_db, list_tickers, upsert_ticker
+from app.trade_plan import (
+    PULLBACK_TRADE_PLAN_COLUMNS,
+    build_pullback_trade_plan,
+    build_pullback_trade_plans,
+    summarize_pullback_trade_plans,
+)
 
 
 DEFAULT_HISTORY_DAYS = 365
@@ -106,6 +112,13 @@ def parse_args() -> argparse.Namespace:
     inspect_pullback_score.add_argument("symbol", help="EODHD symbol, for example ABB.ST or AAPL.US")
     inspect_pullback_score.add_argument("--rows", type=int, default=10, help="Number of latest rows to show")
 
+    inspect_pullback_trade_plan = subparsers.add_parser(
+        "inspect-pullback-trade-plan",
+        help="Show Pullback trade-plan v1 rows for one ticker",
+    )
+    inspect_pullback_trade_plan.add_argument("symbol", help="EODHD symbol, for example ABB.ST or AAPL.US")
+    inspect_pullback_trade_plan.add_argument("--rows", type=int, default=10, help="Number of latest rows to show")
+
     score_strategies = subparsers.add_parser(
         "score-strategies",
         help="Calculate and store strategy scores in SQLite",
@@ -128,6 +141,15 @@ def parse_args() -> argparse.Namespace:
     )
     show_top_setups.add_argument("--date", help="Score date in YYYY-MM-DD format. Defaults to latest stored date.")
     show_top_setups.add_argument("--limit", type=int, default=20, help="Maximum number of rows to show")
+
+    summarize_pullback_trade_plans_command = subparsers.add_parser(
+        "summarize-pullback-trade-plans",
+        help="Summarize Pullback trade-plan v1 filter effect for one stored score date",
+    )
+    summarize_pullback_trade_plans_command.add_argument(
+        "--date",
+        help="Score date in YYYY-MM-DD format. Defaults to latest stored date.",
+    )
 
     daily_update = subparsers.add_parser(
         "daily-update",
@@ -386,6 +408,23 @@ def main() -> int:
             print("\t".join(row.get(column, "") for column in PULLBACK_SCORE_COLUMNS))
         return 0
 
+    if args.command == "inspect-pullback-trade-plan":
+        market_rows = _load_market_rows_with_indicators(args.symbol, settings.database_path)
+        if not market_rows:
+            print(f"No SQLite prices found for {args.symbol.upper()}. Run sync-prices-db first.")
+            return 0
+
+        feature_rows = calculate_pullback_mvp_features(market_rows)
+        score_rows = [_strategy_score_storage_row(args.symbol, score) for score in score_pullback_feature_rows(feature_rows)]
+        plan_rows = [
+            build_pullback_trade_plan(score_row, market_rows, feature_rows).as_row()
+            for score_row in score_rows
+        ]
+        print("\t".join(PULLBACK_TRADE_PLAN_COLUMNS))
+        for row in plan_rows[-args.rows :]:
+            print("\t".join(row.get(column, "") for column in PULLBACK_TRADE_PLAN_COLUMNS))
+        return 0
+
     if args.command == "score-strategies":
         symbols = [args.symbol.upper()] if args.symbol else [ticker["symbol"] for ticker in list_tickers(settings.database_path)]
         total_saved = 0
@@ -422,6 +461,28 @@ def main() -> int:
             print("No stored scored setups found. Run score-strategies first.")
             return 0
         _print_strategy_score_rows(rows)
+        return 0
+
+    if args.command == "summarize-pullback-trade-plans":
+        score_rows = load_strategy_scores(settings.database_path, score_date=args.date)
+        if not score_rows:
+            print("No stored strategy scores found. Run score-strategies first.")
+            return 0
+
+        pullback_score_rows = [row for row in score_rows if row["strategy_id"] == PULLBACK_STRATEGY_ID]
+        market_rows_by_symbol = {}
+        feature_rows_by_symbol = {}
+        for score_row in pullback_score_rows:
+            symbol = score_row["symbol"]
+            if symbol in market_rows_by_symbol:
+                continue
+            market_rows = _load_market_rows_with_indicators(symbol, settings.database_path)
+            market_rows_by_symbol[symbol] = market_rows
+            feature_rows_by_symbol[symbol] = calculate_pullback_mvp_features(market_rows) if market_rows else []
+
+        plan_rows = build_pullback_trade_plans(pullback_score_rows, market_rows_by_symbol, feature_rows_by_symbol)
+        summary_date = args.date or score_rows[0]["date"]
+        _print_pullback_trade_plan_summary(summarize_pullback_trade_plans(summary_date, plan_rows))
         return 0
 
     return 1
@@ -483,6 +544,24 @@ def _print_strategy_score_rows(rows: list[dict]) -> None:
             "warnings": ", ".join(row["warnings"]),
         }
         print("\t".join(str(output_row.get(column, "")) for column in visible_columns))
+
+
+def _print_pullback_trade_plan_summary(summary) -> None:
+    print(f"date\t{summary.date}")
+    print(f"total_pullback_candidates\t{summary.total_pullback_candidates}")
+    _print_count_block("count_by_setup_evolution", summary.count_by_setup_evolution)
+    _print_count_block("count_by_plan_status", summary.count_by_plan_status)
+    _print_count_block("count_by_rr_hypothesis", summary.count_by_rr_hypothesis)
+    _print_count_block("count_by_warning", summary.count_by_warning)
+
+
+def _print_count_block(title: str, counts: dict[str, int]) -> None:
+    print(title)
+    if not counts:
+        print("(none)\t0")
+        return
+    for key, value in counts.items():
+        print(f"{key}\t{value}")
 
 
 if __name__ == "__main__":
