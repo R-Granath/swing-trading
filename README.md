@@ -574,6 +574,9 @@ Läs `docs/README.md` innan strategi-, scoring-, feature- eller screeninglogik
 
 Viktiga dokument:
 
+- `docs/architecture_clarifications_v1.md`: kort förtydligande av separationen
+  mellan scoring, trade-plan, setup evolution, risk/reward-hypotes och
+  LLM-lager.
 - `docs/strategy_development_method_v1.md`: metod för hur strategier byggs,
   granskas, backtestas och förfinas.
 - `docs/strategy_scoring_v1.md`: första riktningen för mjuk strategy scoring

@@ -9,6 +9,69 @@ Formatet ar skrivet for att vara lasbart bade for manniskor och framtida kodagen
 - privat data beskrivs utan att innehall eller hemligheter inkluderas
 - kommandon dokumenteras sa att arbetslaget kan ateruppta fran samma lage
 
+## 2026-05-31 - Pullback trade plan decision table
+
+Commit: pending
+
+Status efter passet:
+
+- dokumentationsandringar, inga kodandringar
+- tester ej korda eftersom passet bara ror dokumentation
+
+Byggt:
+
+- Nytt beslutstabellsdokument har lagts till:
+  `docs/pullback_trade_plan_decision_table_v1.md`.
+
+Beslut och riktning:
+
+- Tabellen ar en bro mellan `PULLBACK_TRADE_PLAN_V1`-design och framtida
+  deterministisk Python-implementation.
+- Den beskriver hur scoring-output, setup evolution, MVP-features och enkla
+  5-10 dagars OHLCV-observationer preliminart kan bli `plan_status`,
+  `setup_class`, `rr_hypothesis`, warnings och kommentar.
+- Reglerna halls mjuka for MVP: `WATCH_PLAN` hellre an `NO_PLAN`,
+  `LATE_PLAN` hellre an felaktigt `NO_PLAN`, och `READY_PLAN` bara nar caset
+  verkar planeringsbart.
+- Ingen ny strategi implementerades.
+- Ingen scoringlogik, trade-planlogik, entry, stop, target eller position
+  sizing andrades.
+
+Rekommenderade nasta steg:
+
+- Granska beslutstabellen manuellt mot charts for `ABB.ST`, `ERIC-B.ST`,
+  `INVE-B.ST` och `VOLV-B.ST`.
+- Darefter kan forsta kodade prototype byggas med filtereffekt-sammanstallning
+  per datum.
+
+## 2026-05-31 - Architecture clarifications
+
+Commit: pending
+
+Status efter passet:
+
+- dokumentationsandringar, inga kodandringar
+- tester ej korda eftersom passet bara ror dokumentation
+
+Byggt:
+
+- Nytt arkitekturfortydligande har lagts till:
+  `docs/architecture_clarifications_v1.md`.
+- `README.md` har uppdaterats latt med lank till arkitekturfortydligandet.
+
+Beslut och riktning:
+
+- README ar fortsatt overgripande source of truth for vision och MVP.
+- Pullback v1-flodet fortydligas som separata lager: data/indicators/features,
+  scoring, trade-plan/setup evolution, risk/reward-hypotes och senare
+  entry/stop/target/position sizing.
+- Python ska aga deterministisk ranking, planstatus, risk och reproducerbar
+  logik.
+- LLM ska anvandas for forklaring, rapportering, mentor/dialog och pedagogiskt
+  stod, inte som primar regelmotor.
+- Ingen ny strategi implementerades.
+- Ingen scoringlogik eller trade-planlogik andrades.
+
 ## 2026-05-29 - Pullback scoring and stored strategy scores
 
 Commit: pending
