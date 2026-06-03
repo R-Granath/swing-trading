@@ -336,12 +336,12 @@ def _distance_score(value: Decimal, bands: list[tuple[Decimal, int]]) -> int:
 def _score_sma20_pullback_location(distance: Decimal) -> int:
     if Decimal("0") <= distance <= Decimal("0.75"):
         return 10
-    if Decimal("-0.5") <= distance < Decimal("0"):
-        return 6
     if Decimal("0.75") < distance <= Decimal("1.5"):
         return 5
+    if Decimal("-0.5") <= distance < Decimal("0"):
+        return 4
     if Decimal("-1") <= distance < Decimal("-0.5"):
-        return 2
+        return 1
     if Decimal("1.5") < distance <= Decimal("2"):
         return 2
     return 0
@@ -350,12 +350,12 @@ def _score_sma20_pullback_location(distance: Decimal) -> int:
 def _score_sma50_pullback_location(distance: Decimal) -> int:
     if Decimal("0") <= distance <= Decimal("1"):
         return 8
-    if Decimal("-0.5") <= distance < Decimal("0"):
-        return 4
     if Decimal("1") < distance <= Decimal("2"):
         return 5
+    if Decimal("-0.5") <= distance < Decimal("0"):
+        return 2
     if Decimal("-1") <= distance < Decimal("-0.5"):
-        return 1
+        return 0
     return 0
 
 

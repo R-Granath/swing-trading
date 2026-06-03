@@ -82,6 +82,23 @@ class PullbackScoringTest(unittest.TestCase):
 
         self.assertGreater(above_score.pullback_score, below_score.pullback_score)
         self.assertEqual(above_score.pullback_score, 30)
+        self.assertEqual(below_score.pullback_score, 21)
+
+    def test_sma50_location_scores_above_support_better_than_just_below(self):
+        above_score = score_pullback_features(
+            feature_row(
+                distance_to_sma20_atr="2.5000",
+                distance_to_sma50_atr="0.3000",
+            )
+        )
+        below_score = score_pullback_features(
+            feature_row(
+                distance_to_sma20_atr="2.5000",
+                distance_to_sma50_atr="-0.3000",
+            )
+        )
+
+        self.assertEqual(above_score.pullback_score, 28)
         self.assertEqual(below_score.pullback_score, 22)
 
     def test_weak_trend_with_strong_candle_does_not_become_candidate(self):

@@ -81,8 +81,11 @@ def feature_rows(
 class PullbackTradePlanTest(unittest.TestCase):
     def test_responding_near_sma20_can_be_ready_plan(self):
         closes = [100, 99, 98, 97, 96, 95, 96, 97, 98, 99]
+        features = feature_rows(closes)
+        features[0]["distance_to_sma20_atr"] = "2.0000"
+        features[1]["distance_to_sma20_atr"] = "1.7000"
 
-        plan = build_pullback_trade_plan(score_row(), market_rows(closes), feature_rows(closes))
+        plan = build_pullback_trade_plan(score_row(), market_rows(closes), features)
 
         self.assertEqual(plan.strategy, PULLBACK_TRADE_PLAN_ID)
         self.assertEqual(plan.setup_evolution, "RESPONDING")
@@ -100,6 +103,8 @@ class PullbackTradePlanTest(unittest.TestCase):
         markets[9]["open"] = 95
         markets[9]["close"] = 97
         features = feature_rows(closes)
+        features[0]["distance_to_sma20_atr"] = "2.0000"
+        features[1]["distance_to_sma20_atr"] = "1.7000"
         features[6]["volume_vs_avg20"] = "0.7000"
         features[7]["volume_vs_avg20"] = "1.0000"
         features[8]["volume_vs_avg20"] = "1.0000"
@@ -124,6 +129,66 @@ class PullbackTradePlanTest(unittest.TestCase):
         self.assertEqual(plan.setup_evolution, "RESPONDING")
         self.assertEqual(plan.plan_status, "WATCH_PLAN")
         self.assertIn("thin_response", plan.warnings)
+        self.assertIn("low_volume_response", plan.warnings)
+
+    def test_weak_current_response_blocks_ready_plan(self):
+        closes = [100, 99, 98, 97, 96, 95, 96, 97, 98, 96]
+        markets = market_rows(closes)
+        markets[9]["open"] = 99
+        markets[9]["close"] = 96
+
+        plan = build_pullback_trade_plan(
+            score_row(),
+            markets,
+            feature_rows(closes, close_position="0.1000", volume="1.2000"),
+        )
+
+        self.assertEqual(plan.plan_status, "WATCH_PLAN")
+        self.assertIn("weak_current_response", plan.warnings)
+
+    def test_already_bounced_then_weak_current_day_blocks_ready_plan(self):
+        closes = [100, 99, 98, 97, 96, 95, 96, 97, 98, 96]
+        markets = market_rows(closes)
+        markets[6]["open"] = 95
+        markets[6]["close"] = 96
+        markets[7]["open"] = 96
+        markets[7]["close"] = 97
+        markets[9]["open"] = 99
+        markets[9]["close"] = 96
+        features = feature_rows(closes, close_position="0.8000", volume="1.2000")
+        features[9]["close_position_in_range"] = "0.1000"
+
+        plan = build_pullback_trade_plan(score_row(), markets, features)
+
+        self.assertEqual(plan.plan_status, "WATCH_PLAN")
+        self.assertIn("already_bounced_from_pullback_low", plan.warnings)
+
+    def test_missing_prior_strength_above_sma20_blocks_ready_plan(self):
+        closes = [100, 99, 98, 97, 96, 95, 96, 97, 98, 99]
+
+        plan = build_pullback_trade_plan(
+            score_row(),
+            market_rows(closes),
+            feature_rows(closes, distance_sma20="0.3000"),
+        )
+
+        self.assertEqual(plan.plan_status, "WATCH_PLAN")
+        self.assertIn("not_clean_pullback_sequence", plan.warnings)
+
+    def test_shallow_response_with_modest_pullback_score_stays_watch_plan(self):
+        closes = [100, 99, 98, 97, 96, 95, 96, 97, 98, 99]
+
+        plan = build_pullback_trade_plan(
+            score_row(heat=81, trend_score=40, pullback_score=13, resumption_score=18),
+            market_rows(closes),
+            feature_rows(closes, pullback_depth="-2.2000", distance_sma20="0.7000"),
+        )
+
+        self.assertEqual(plan.setup_evolution, "RESPONDING")
+        self.assertEqual(plan.setup_class, "SHALLOW_PULLBACK")
+        self.assertEqual(plan.rr_hypothesis, "RR_GOOD")
+        self.assertEqual(plan.plan_status, "WATCH_PLAN")
+        self.assertIn("weak_planability_despite_high_score", plan.warnings)
 
     def test_stabilizing_survives_as_watch_plan(self):
         closes = [100, 99, 98, 97, 96, 95.5, 95.6, 95.7, 95.8, 95.9]

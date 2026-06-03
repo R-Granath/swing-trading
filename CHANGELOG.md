@@ -9,6 +9,205 @@ Formatet ar skrivet for att vara lasbart bade for manniskor och framtida kodagen
 - privat data beskrivs utan att innehall eller hemligheter inkluderas
 - kommandon dokumenteras sa att arbetslaget kan ateruppta fran samma lage
 
+## 2026-06-03 - Pullback sequence and MA-location tightening
+
+Commit: pending
+
+Status efter passet:
+
+- `PULLBACK_SCORING_V1` putsad med mer asymmetrisk MA-location
+- `PULLBACK_TRADE_PLAN_V1` putsad med enkel aktuell respons-/sekvensdiagnostik
+- entry, stop-loss, target, risk/reward-nivaer och position sizing ar fortsatt
+  inte implementerade
+- tester grona: `Ran 58 tests OK`
+
+Byggt:
+
+- Scoring ger nu mindre location-poang nar priset ligger under SMA20/SMA50
+  jamfort med motsvarande avstand ovanfor, sarskilt runt SMA50.
+- Trade-planens evolutionsobservationer har fatt enkla sekvensfalt:
+  - `current_day_response`
+  - `weak_current_response`
+  - `low_volume_response`
+  - `days_since_local_low_10d`
+  - `green_count_after_local_low`
+  - `strong_close_count_after_local_low`
+  - `days_near_ma_zone_10d`
+  - `already_bounced_from_pullback_low`
+  - `stale_near_ma_zone`
+- `READY_PLAN` blockeras nu av:
+  - `weak_current_response`
+  - `low_volume_response`
+  - `already_bounced_from_pullback_low`
+  - `stale_near_ma_zone`
+- `BREAKING_OUT` kan inte langre bli `READY_PLAN` nar setup-klassen ar
+  `SHALLOW_PULLBACK`.
+
+Review-effekt pa diskuterade cases:
+
+- `ERIC-B.ST` 2026-05-29 ar fortsatt `READY_PLAN`.
+- `INVE-B.ST` 2026-04-30 ar fortsatt `READY_PLAN`.
+- `VOLV-B.ST` 2026-06-02 gick till `WATCH_PLAN` /
+  `SHALLOW_PULLBACK` / `BREAKING_OUT`.
+- `INVE-B.ST` 2026-05-07 gick till `WATCH_PLAN` med warnings
+  `weak_current_response` och `already_bounced_from_pullback_low`.
+- `ERIC-B.ST` 2026-04-23 gick till `WATCH_PLAN` med warnings
+  `down_volume_risk`, `weak_current_response` och `stale_near_ma_zone`.
+- `ABB.ST` 2026-04-02 gick till `WATCH_PLAN` med warning
+  `low_volume_response`.
+
+Viktigt:
+
+- Review-kommandot raknar scoring/trade-plan i arbetsminne. Sparade scores i
+  SQLite uppdateras forst nar `score-strategies` kors igen.
+- Nasta review bor fokusera pa de aterstaende `READY_PLAN`-fallen efter denna
+  skarpning, inklusive `ERIC-B.ST` 2026-04-01 och marsfallen.
+
+## 2026-06-03 - Pullback process filter checkpoint
+
+Commit: pending
+
+Status efter passet:
+
+- `PULLBACK_TRADE_PLAN_V1` har fatt ett forsta processfilter for clean
+  pullback-sekvens
+- scoringlogik andrades inte i detta delsteg
+- entry, stop-loss, target, risk/reward-nivaer och position sizing ar fortsatt
+  inte implementerade
+- tester grona: `Ran 59 tests OK`
+
+Byggt:
+
+- Trade-planen raknar nu:
+  - `days_clearly_above_sma20_10d`
+  - `max_distance_to_sma20_atr_10d`
+  - `not_clean_pullback_sequence`
+- `not_clean_pullback_sequence` satts nar senaste 10-dagarsfonstret saknar
+  tillracklig tidigare styrka ovanfor SMA20 och samtidigt har manga dagar nara
+  MA-zonen.
+- `not_clean_pullback_sequence` blockerar `READY_PLAN`.
+
+Review-effekt:
+
+- `ABB.ST` 2026-03-24 till 2026-03-31 gick till `WATCH_PLAN` med
+  `not_clean_pullback_sequence`.
+- `ABB.ST` 2026-03-25 ar inte langre `READY_PLAN` trots hog score.
+- `ERIC-B.ST` 2026-03-23 ar fortsatt `READY_PLAN`, vilket matchar reviewen
+  battre an `ERIC-B.ST` 2026-04-23.
+- Kvarvarande `READY_PLAN` i reviewintervallet 2026-03-20 till 2026-06-03 ar
+  nu mer koncentrerade till ett fatal Ericsson/Investor-cases.
+
+Viktigt:
+
+- Detta ar fortfarande en enkel processproxy, inte ett riktigt swing-high /
+  pullback-leg-ankare.
+- Nasta review kan avgora om `ERIC-B.ST` 2026-04-01, 2026-03-30 och
+  2026-03-27 ska vara kvar som `READY_PLAN`, eller om vi behover ett
+  `fresh_response_window` / `days_since_first_response`-filter.
+
+## 2026-06-03 - Pullback historical review CLI
+
+Commit: pending
+
+Status efter passet:
+
+- nytt historiskt review-kommando for Pullback trade-plan-kalibrering
+- review-rader beraknas i arbetsminne och sparas inte i DB
+- scoringlogik och trade-plan-regler andrades inte i detta steg
+- tester grona: `Ran 55 tests OK`
+
+Byggt:
+
+- Ny modul `app/review.py` med ateranvandbar funktion for historiska
+  Pullback-reviewrader.
+- Nytt CLI-kommando:
+  - `review-pullback-trade-plans`
+- Kommandot visar score-delar, trade-plan-klassning, kommentarer, warnings och
+  nyckelfeatures i samma tabell.
+- Filter finns for:
+  - `--from-date`
+  - `--to-date`
+  - `--symbol`
+  - `--min-heat`
+  - `--plan-status`
+  - `--setup-class`
+  - `--setup-evolution`
+  - `--limit`
+
+Exempel:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.cli review-pullback-trade-plans --from-date 2026-05-29 --to-date 2026-06-03 --min-heat 60 --limit 12
+.\.venv\Scripts\python.exe -m app.cli review-pullback-trade-plans --plan-status READY_PLAN --min-heat 60
+.\.venv\Scripts\python.exe -m app.cli review-pullback-trade-plans --setup-class SHALLOW_PULLBACK --min-heat 60
+```
+
+Forsta observation fran lokal review:
+
+- `VOLV-B.ST` 2026-06-02 blev `READY_PLAN` trots `SHALLOW_PULLBACK`, eftersom
+  `BREAKING_OUT`-grenen fortfarande tillater `READY_PLAN` nar heat, trend och
+  `RR_GOOD` racker.
+- Detta ar ett bra nasta review-case innan entry/stop/target byggs:
+  bor `BREAKING_OUT` + `SHALLOW_PULLBACK` kunna vara `READY_PLAN`, eller ska
+  det normalt vara `WATCH_PLAN`/`LATE_PLAN` tills lokal struktur ar tydligare?
+
+## 2026-06-03 - Pullback shallow response tightening
+
+Commit: pending
+
+Status efter passet:
+
+- `PULLBACK_TRADE_PLAN_V1` putsad for att skilja ren pullback-respons fran
+  grund continuation/momentum-liknande respons
+- scoringlogik for `PULLBACK_SCORING_V1` andrades inte
+- entry, stop-loss, target, risk/reward-nivaer och position sizing ar fortsatt
+  inte implementerade
+- tester grona: `Ran 54 tests OK`
+
+Byggt:
+
+- Grund respons med hog total score, modest `pullback_score` och grund
+  `pullback_depth_20d_pct` klassas nu som `SHALLOW_PULLBACK` innan den
+  generella SMA20-regeln far klassa caset som ren `SMA20_PULLBACK`.
+- `RESPONDING` far bara bli `READY_PLAN` nar `setup_class` ar
+  `SMA20_PULLBACK` eller `SMA50_PULLBACK`, preliminar RR ar `RR_GOOD` och
+  responsen inte ar tunn.
+- Varningen `weak_planability_despite_high_score` omfattar nu aven
+  `pullback_score = 13`, vilket matchar ABB-fyndet.
+- Regressionstest lades till for shallow response + modest pullback score som
+  ska stanna i `WATCH_PLAN`.
+
+Dataeffekt lokalt for `2026-05-29`:
+
+- `ABB.ST` gick fran `READY_PLAN` / `SMA20_PULLBACK` till
+  `WATCH_PLAN` / `SHALLOW_PULLBACK` med warning
+  `weak_planability_despite_high_score`.
+- `ERIC-B.ST` ar fortsatt `READY_PLAN` / `SMA20_PULLBACK` med warning
+  `down_volume_risk`.
+- Filtereffekten for de fyra testtickers blev:
+  - `READY_PLAN`: 1
+  - `WATCH_PLAN`: 3
+  - `RESPONDING`: 4
+  - `RR_GOOD`: 3
+  - `RR_UNCLEAR`: 1
+
+Viktiga kommandon:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.cli inspect-pullback-trade-plan ABB.ST --rows 1
+.\.venv\Scripts\python.exe -m app.cli inspect-pullback-trade-plan ERIC-B.ST --rows 1
+.\.venv\Scripts\python.exe -m app.cli summarize-pullback-trade-plans --date 2026-05-29
+.\.venv\Scripts\python.exe -m unittest discover -s tests
+```
+
+Rekommenderade nasta steg:
+
+- Granska om `SHALLOW_PULLBACK` alltid ska vara `WATCH_PLAN` nar evolution ar
+  `RESPONDING`, eller om nagon tidig shallow respons senare ska kunna bli
+  `READY_PLAN` med extra tajt lokal struktur.
+- Fortsatt vanta med entry, stop, target och position sizing tills
+  `READY_PLAN` betyder ratt sak.
+
 ## 2026-05-31 - Pullback trade plan prototype
 
 Commit: pending

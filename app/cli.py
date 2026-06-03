@@ -19,6 +19,11 @@ from app.market_data import (
     sync_csv_prices_to_db,
 )
 from app.price_store import PRICE_COLUMNS, earliest_price_date, latest_price_date, load_prices, save_prices
+from app.review import (
+    PULLBACK_TRADE_PLAN_REVIEW_COLUMNS,
+    build_pullback_trade_plan_review_rows,
+    filter_limit_review_rows,
+)
 from app.scoring import PULLBACK_SCORE_COLUMNS, PULLBACK_STRATEGY_ID, score_pullback_feature_rows
 from app.tickers import Ticker, init_db, list_tickers, upsert_ticker
 from app.trade_plan import (
@@ -150,6 +155,19 @@ def parse_args() -> argparse.Namespace:
         "--date",
         help="Score date in YYYY-MM-DD format. Defaults to latest stored date.",
     )
+
+    review_pullback_trade_plans = subparsers.add_parser(
+        "review-pullback-trade-plans",
+        help="Review historical Pullback scores, features, and trade-plan classifications",
+    )
+    review_pullback_trade_plans.add_argument("--from-date", help="Start date in YYYY-MM-DD format")
+    review_pullback_trade_plans.add_argument("--to-date", help="End date in YYYY-MM-DD format")
+    review_pullback_trade_plans.add_argument("--symbol", help="Optional ticker. Defaults to all active tickers.")
+    review_pullback_trade_plans.add_argument("--min-heat", type=int, help="Minimum Pullback heat")
+    review_pullback_trade_plans.add_argument("--plan-status", help="Filter by plan status, for example WATCH_PLAN")
+    review_pullback_trade_plans.add_argument("--setup-class", help="Filter by setup class, for example SHALLOW_PULLBACK")
+    review_pullback_trade_plans.add_argument("--setup-evolution", help="Filter by setup evolution, for example RESPONDING")
+    review_pullback_trade_plans.add_argument("--limit", type=int, default=50, help="Maximum number of rows to show")
 
     daily_update = subparsers.add_parser(
         "daily-update",
@@ -485,6 +503,29 @@ def main() -> int:
         _print_pullback_trade_plan_summary(summarize_pullback_trade_plans(summary_date, plan_rows))
         return 0
 
+    if args.command == "review-pullback-trade-plans":
+        symbols = [args.symbol.upper()] if args.symbol else [ticker["symbol"] for ticker in list_tickers(settings.database_path)]
+        review_rows = []
+        for symbol in symbols:
+            market_rows = _load_market_rows_with_indicators(symbol, settings.database_path)
+            if not market_rows:
+                continue
+            review_rows.extend(
+                build_pullback_trade_plan_review_rows(
+                    symbol,
+                    market_rows,
+                    from_date=args.from_date,
+                    to_date=args.to_date,
+                    min_heat=args.min_heat,
+                    plan_status=args.plan_status,
+                    setup_class=args.setup_class,
+                    setup_evolution=args.setup_evolution,
+                )
+            )
+
+        _print_review_rows(filter_limit_review_rows(review_rows, args.limit))
+        return 0
+
     return 1
 
 
@@ -562,6 +603,12 @@ def _print_count_block(title: str, counts: dict[str, int]) -> None:
         return
     for key, value in counts.items():
         print(f"{key}\t{value}")
+
+
+def _print_review_rows(rows: list[dict]) -> None:
+    print("\t".join(PULLBACK_TRADE_PLAN_REVIEW_COLUMNS))
+    for row in rows:
+        print("\t".join(row.get(column, "") for column in PULLBACK_TRADE_PLAN_REVIEW_COLUMNS))
 
 
 if __name__ == "__main__":

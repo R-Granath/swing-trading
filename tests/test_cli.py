@@ -543,6 +543,59 @@ class CliTest(unittest.TestCase):
             self.assertEqual(lines[1], "total_pullback_candidates\t1")
             self.assertIn("count_by_plan_status", lines)
 
+    def test_review_pullback_trade_plans_prints_historical_review_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base_path = Path(directory)
+            eod_dir = base_path / "eod"
+            database_path = base_path / "eodwin.sqlite"
+            start_date = date(2025, 1, 1)
+            save_prices(
+                "ABB.ST",
+                [
+                    {
+                        "date": (start_date + timedelta(days=day - 1)).isoformat(),
+                        "open": 100 + day,
+                        "high": 102 + day,
+                        "low": 98 + day,
+                        "close": 101 + day,
+                        "adjusted_close": 101 + day,
+                        "volume": 1000 + day,
+                    }
+                    for day in range(1, 221)
+                ],
+                eod_dir,
+            )
+            sync_csv_prices_to_db("ABB.ST", eod_dir, database_path)
+            calculate_and_store_indicators("ABB.ST", database_path)
+
+            output = io.StringIO()
+            with (
+                patch("app.cli.get_settings", return_value=Settings(database_path=database_path, eod_dir=eod_dir)),
+                patch(
+                    "sys.argv",
+                    [
+                        "app.cli",
+                        "review-pullback-trade-plans",
+                        "--symbol",
+                        "ABB.ST",
+                        "--from-date",
+                        "2025-07-01",
+                        "--limit",
+                        "1",
+                    ],
+                ),
+                redirect_stdout(output),
+            ):
+                exit_code = main()
+
+            self.assertEqual(exit_code, 0)
+            lines = output.getvalue().splitlines()
+            self.assertTrue(lines[0].startswith("date\tsymbol\theat\tstatus\ttrend_score"))
+            self.assertIn("plan_status", lines[0])
+            self.assertIn("pullback_depth_20d_pct", lines[0])
+            self.assertEqual(len(lines), 2)
+            self.assertIn("ABB.ST", lines[1])
+
 
 if __name__ == "__main__":
     unittest.main()
