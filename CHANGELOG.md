@@ -9,6 +9,40 @@ Formatet ar skrivet for att vara lasbart bade for manniskor och framtida kodagen
 - privat data beskrivs utan att innehall eller hemligheter inkluderas
 - kommandon dokumenteras sa att arbetslaget kan ateruppta fran samma lage
 
+## 2026-06-04 - Pullback theory basis checkpoint
+
+Commit: pending
+
+Status efter passet:
+
+- dokumentationsandringar, inga kodandringar
+- inga tester korda eftersom passet bara ror teori och docs-index
+
+Byggt:
+
+- Nytt teoridokument har lagts till:
+  `docs/pullback_theory_basis_v1.md`.
+- Dokumentet fortydligar Pullback v1:s nuvarande teori:
+  stark tidigare trend, kontrollerad rekyl, nara MA-/supportzon, oskadad trend,
+  koparrespons och rimlig tradability.
+- Dokumentet kopplar teorin till referensramar:
+  trend/momentum-litteratur, Weinstein/stage analysis, Minervini/Trend
+  Template/VCP och O'Neil/CAN SLIM.
+- Dokumentet markerar viktiga gap mellan teori och kod:
+  - `rolling_high_20d` ar bara en proxy, inte ett verkligt swing-high- eller
+    pullback-leg-ankare
+  - fresh response ar inte definierad som egen process
+  - strategihandoff till Momentum/Breakout/Volatility Compression ar ofardig
+  - volymmodellen ar fortfarande grund
+- `docs/README.md` har uppdaterats sa teoridokumentet ingar i lasordningen.
+
+Review-riktning:
+
+- Nasta steg bor vara att satta stabila review-labels pa kvarvarande
+  `READY_PLAN`, inte att direkt lagga till nya filter.
+- Sarskilt oppet ar om `ERIC-B.ST` 2026-03-27, 2026-03-30 och 2026-04-01 ska
+  vara `acceptable_followup_ready` eller `late_same_sequence`.
+
 ## 2026-06-03 - Pullback sequence and MA-location tightening
 
 Commit: pending

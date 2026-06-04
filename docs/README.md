@@ -10,7 +10,8 @@ andras.
 2. `strategy_scoring_v1.md`
 3. `pullback_scoring_spec_v1.md`
 4. `feature_definitions_v1.md`
-5. Framtida strategispecifikationer, till exempel `momentum_scoring_spec_v1.md`
+5. `pullback_theory_basis_v1.md`
+6. Framtida strategispecifikationer, till exempel `momentum_scoring_spec_v1.md`
 
 ## Dokument
 
@@ -77,6 +78,15 @@ Dokumenterar forsta CLI-baserade sanity review av Pullback v1 MVP-features for
 
 Syftet ar att kontrollera om featurevarden verkar rimliga innan scoring byggs.
 Det ar inte en trade-plan och inte en scoringmodell.
+
+### `pullback_theory_basis_v1.md`
+
+Fortydligar Pullback v1:s nuvarande teori, referensramar, evidence map,
+chartlogik, kodbara proxies och gap mellan teori och kod.
+
+Dokumentet ska lasas innan fler Pullback trade-plan-filter laggs till, sa att
+nya regler kan kopplas till en tydlig teoriprincip i stallet for enskilda
+review-fynd.
 
 ## Framtida dokument
 
